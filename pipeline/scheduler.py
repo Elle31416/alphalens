@@ -199,15 +199,8 @@ def verify_environment() -> bool:
     """Check if required Bright Data credentials are present in non-mock mode."""
     if USE_MOCK:
         return True
-    
-    # Check for both short (Scraper Browser) and verbose (Web Unlocker) credentials
-    scraper_ok = os.getenv("BD_UNLOCKER_USER") and os.getenv("BD_UNLOCKER_PASS")
-    unlocker_ok = os.getenv("BRIGHT_DATA_UNLOCKER_USER") and os.getenv("BRIGHT_DATA_UNLOCKER_PASS")
-    
-    if not scraper_ok or not unlocker_ok:
-        logger.error("[Pipeline] Missing Bright Data credentials in environment.")
-        if not scraper_ok: logger.error("- Missing BD_UNLOCKER_USER/PASS (Scraper Browser)")
-        if not unlocker_ok: logger.error("- Missing BRIGHT_DATA_UNLOCKER_USER/PASS (Web Unlocker)")
+    if not os.getenv("BD_UNLOCKER_USER") or not os.getenv("BD_UNLOCKER_PASS"):
+        logger.error("[Pipeline] Missing Bright Data credentials (BD_UNLOCKER_USER/PASS) in environment.")
         return False
     return True
 
