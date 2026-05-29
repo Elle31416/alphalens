@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────
+  db:
+    image: postgres:15
+    container_name: alphalens-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: alphalens
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: alpha123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./pipeline/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+
+  # ── FastAPI backend ───────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: alphalens-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
+  # ── Nightly scheduler ─────────────────────────────────────────
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: alphalens-scheduler
+    restart: unless-stopped
+    env_file: .env
+    command: python -m pipeline.scheduler
+    depends_on:
+      - db
+
+volumes:
+  pg_data:
