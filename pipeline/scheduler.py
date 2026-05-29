@@ -69,6 +69,29 @@ TICKER_CONFIG = {
 
 USE_MOCK = os.getenv("USE_MOCK_DATA", "false").lower() == "true"
 
+def get_active_config() -> dict:
+    """Fetch ticker configuration from database, falling back to TICKER_CONFIG."""
+    from pipeline.db import get_tickers
+    try:
+        db_rows = get_tickers()
+        if not db_rows:
+            return TICKER_CONFIG
+        
+        config = {}
+        for row in db_rows:
+            # Map DB columns to the format expected by runners
+            config[row['symbol']] = {
+                "company":     row['company'],
+                "asins":       [a.strip() for a in (row.get('amazon_asins') or "").split(",") if a.strip()],
+                "ios_app_id":  row.get('ios_app_id'),
+                "android_pkg": row.get('android_pkg'),
+                "sec_cik":     row.get('sec_cik'),
+            }
+        return config
+    except Exception as exc:
+        logger.error(f"[Pipeline] Failed to fetch config from DB, using fallback: {exc}")
+        return TICKER_CONFIG
+
 
 # ── Scraper runners ───────────────────────────────────────────
 def run_linkedin(ticker: str, cfg: dict) -> dict:
@@ -172,16 +195,31 @@ def process_ticker(ticker: str, cfg: dict) -> bool:
         return False
 
 
+def verify_environment() -> bool:
+    """Check if required Bright Data credentials are present in non-mock mode."""
+    if USE_MOCK:
+        return True
+    if not os.getenv("BD_UNLOCKER_USER") or not os.getenv("BD_UNLOCKER_PASS"):
+        logger.error("[Pipeline] Missing Bright Data credentials (BD_UNLOCKER_USER/PASS) in environment.")
+        return False
+    return True
+
+
 # ── Nightly batch ─────────────────────────────────────────────
 def run_nightly():
     logger.info("═══════════════════════════════════════")
+    config = get_active_config()
+    
     logger.info(f"AlphaLens nightly run — {datetime.now(timezone.utc).isoformat()}")
-    logger.info(f"Tickers: {list(TICKER_CONFIG.keys())}")
+    logger.info(f"Tickers: {list(config.keys())}")
     logger.info(f"Mode: {'MOCK' if USE_MOCK else 'LIVE'}")
     logger.info("═══════════════════════════════════════")
 
+    if not verify_environment():
+        return
+
     success, failed = [], []
-    for ticker, cfg in TICKER_CONFIG.items():
+    for ticker, cfg in config.items():
         ok = process_ticker(ticker, cfg)
         (success if ok else failed).append(ticker)
 

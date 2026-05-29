@@ -121,22 +121,35 @@ $env:USE_MOCK_DATA="false"; python -m pipeline.scheduler --now
 
 ---
 
-## Hosting on Render
+## Production Deployment
 
-### 1. Database
-Create a **Render PostgreSQL** instance. Copy the **Internal Database URL** for the backend/worker.
+### 1. Database (Render PostgreSQL)
+- Create a **PostgreSQL** instance on Render.
+- **Internal Database URL**: Use this for the FastAPI Backend on Render.
+- **External Database URL**: Use this for GitHub Actions secrets.
 
-### 2. Backend (FastAPI)
-Create a **Web Service**:
-- **Build Command**: `pip install -r requirements.txt`
+### 2. Backend & Frontend (Render)
+**Backend (FastAPI):**
+- **Build Command**: `python -m pip install --upgrade pip setuptools wheel && pip install -r requirements.txt`
 - **Start Command**: `uvicorn api.main:app --host 0.0.0.0 --port $PORT`
-- **Environment Variables**: Add `DATABASE_URL`, `XAI_API_KEY`, and Bright Data credentials.
+- **Environment Variables**: Add `DATABASE_URL` (Internal), `XAI_API_KEY`, and Bright Data credentials.
+- **Environment Variables (Important)**: Add `PYTHON_VERSION` set to `3.11.0` to prevent build errors with pandas.
 
-### 3. Scheduler (Background Worker)
-Create a **Background Worker**:
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `python -m pipeline.scheduler`
-- **Environment Variables**: Same as Backend.
+**Frontend (Next.js):**
+- **Root Directory**: `frontend`
+- **Build Command**: `npm install && npm run build`
+- **Start Command**: `npm run start`
+- **Environment Variables**: `NEXT_PUBLIC_API_URL` (Your Render Backend Web Service URL).
+
+### 3. Pipeline Scheduler (GitHub Actions)
+- Go to your GitHub Repo **Settings > Secrets and variables > Actions**.
+- Add the following as Repository Secrets:
+  - `RENDER_EXTERNAL_DB_URL` (The **External** URL from your Render DB dashboard)
+  - `XAI_API_KEY`
+  - `BD_UNLOCKER_USER`
+  - `BD_UNLOCKER_PASS`
+  - `BD_API_TOKEN`
+- The pipeline runs automatically at 11 PM EST via `.github/workflows/nightly_pipeline.yml`.
 
 ### 4. Frontend (Next.js)
 Create a **Web Service**:

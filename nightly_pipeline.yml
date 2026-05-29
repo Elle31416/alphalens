@@ -1,0 +1,43 @@
+name: Nightly AlphaLens Pipeline
+
+on:
+  schedule:
+    # Runs at 23:00 EST (04:00 UTC) Mon-Fri
+    - cron: '0 4 * * 1-5'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+
+      - name: Run Pipeline
+        env:
+          # Uses the External URL for remote access to Render DB
+          DATABASE_URL: ${{ secrets.RENDER_EXTERNAL_DB_URL }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          BD_API_TOKEN: ${{ secrets.BD_API_TOKEN }}
+          BRIGHTDATA_UNLOCKER_HOST: ${{ vars.BRIGHTDATA_UNLOCKER_HOST || 'brd.superproxy.io' }}
+          BRIGHTDATA_UNLOCKER_PORT: ${{ vars.BRIGHTDATA_UNLOCKER_PORT || '22225' }}
+          BRIGHT_DATA_RESIDENTIAL_USER: ${{ secrets.BRIGHT_DATA_RESIDENTIAL_USER }}
+          BRIGHT_DATA_RESIDENTIAL_PASS: ${{ secrets.BRIGHT_DATA_RESIDENTIAL_PASS }}
+          BRIGHT_DATA_UNLOCKER_USER: ${{ secrets.BRIGHT_DATA_UNLOCKER_USER }}
+          BRIGHT_DATA_UNLOCKER_PASS: ${{ secrets.BRIGHT_DATA_UNLOCKER_PASS }}
+          BD_UNLOCKER_USER: ${{ secrets.BRIGHT_DATA_SCRAPER_USER }}
+          BD_UNLOCKER_PASS: ${{ secrets.BRIGHT_DATA_SCRAPER_PASS }}
+          USE_MOCK_DATA: "false"
+        run: |
+          python -m pipeline.scheduler --now

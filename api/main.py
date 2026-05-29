@@ -184,9 +184,14 @@ def trigger_pipeline(background_tasks: BackgroundTasks, ticker: str | None = Non
     Runs in the background; returns immediately.
     """
     def _run(t: str | None):
-        from pipeline.scheduler import run_nightly, process_ticker, TICKER_CONFIG
+        from pipeline.scheduler import run_nightly, process_ticker, get_active_config, verify_environment
+        
+        if not verify_environment():
+            return
+
         if t:
-            cfg = TICKER_CONFIG.get(t.upper())
+            config = get_active_config()
+            cfg = config.get(t.upper())
             if cfg:
                 process_ticker(t.upper(), cfg)
             else:
